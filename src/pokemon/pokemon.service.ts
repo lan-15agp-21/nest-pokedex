@@ -1,80 +1,104 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException,  } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId,Model } from 'mongoose';
-import { Pokemon } from './entities/pokemon.entity';
+import { ConfigService } from '@nestjs/config';
 
+
+import { isValidObjectId, Model } from 'mongoose';
+import { Pokemon } from './entities/pokemon.entity';
 
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
-export class PokemonService {
-  pokemonModel: any;
+export class PokemonService { 
+
+  private defaultLimit: number;
   
   constructor(
+
+
     @InjectModel( Pokemon.name )
-    private readonly PokemonModel: Model<Pokemon>,
-  ){}
+    private readonly pokemonModel: Model<Pokemon>,
+
+    private readonly configService: ConfigService,
   
-  async create(CreatePokemonDto: CreatePokemonDto) {
-    CreatePokemonDto.name = CreatePokemonDto.name.toLocaleLowerCase();
+  ) {
+     
+     this.defaultLimit = configService.get<number>('defaultLimit');
+     
+  }
+  
+  async create(createPokemonDto: CreatePokemonDto) {
+    createPokemonDto.name = createPokemonDto.name.toLocaleLowerCase();
 
     
   try {
-    const pokemon = await this.PokemonModel.create( CreatePokemonDto );
+    const pokemon = await this.pokemonModel.create( createPokemonDto );
     return pokemon;
-
+  
   } catch ( error ) {
-    if ( error.code === 11000 ) {
-      throw new BadRequestException('Pokemon exists in db ${ JSON.stringify( error.KeyValue ) }');
-    }
-    console.log(error);
-    throw new InternalServerErrorException(`Can't create Pokemon - Check server logs`);
+    this.handleExceptions( error);
   }
 
 }  
+handleExceptions(error: any) {
+  throw new Error('Method not implemented.');
+  }
 
-  findAll() {
-    return `This action returns all pokemon`;
+  findAll( paginationDto: PaginationDto ) {
+
+    const { limit = this.defaultLimit, offset = 0  } = paginationDto;
+    
+    return this.pokemonModel.find()
+      .limit( limit )
+      .skip( offset )
+      .sort({
+        no: 1
+      })
+      .select('-_v')
   }
 
   async findOne(term: string) {
     
-    let pokemon: Pokemon
+    let pokemon: Pokemon;
 
-    if ( !isNaN( +term) ) {
-      pokemon = await this.PokemonModel.findOne({ no: term });
+    if ( !isNaN( +term)) {
+      pokemon = await this.pokemonModel.findOne({ no: term });
     }
     
     
     
     
     // MongoID
-    if  ( !pokemon && isValidObjectId( term ) ) {
-      pokemon = await this.PokemonModel.findById( term );
+    if  ( !pokemon && isValidObjectId(term)) {
+      pokemon = await this.pokemonModel.findById(term);
     }
 
     // Name
     if ( !pokemon ) {
-      pokemon = await this.PokemonModel.findOne({ name: term.toLocaleLowerCase().trim() })
+      pokemon = await this.pokemonModel.findOne({ name: term.toLocaleLowerCase().trim() })
     }
 
 
-    if ( !pokemon ) 
-    throw new NotFoundException(`Pokemon with id,name or no "${ term }" not found`);
+    if ( !pokemon ) {
+      throw new NotFoundException(`Pokemon with id,name or no "${term}" not found`);
     
+  } 
     
     return pokemon;
   }
 
-  async update( term: string, updatePokemonDto:  UpdatePokemonDto) {
+  async update(term: string, updatePokemonDto:  UpdatePokemonDto) {
+    const pokemon = await this.findOne(term);
 
-    const pokemon = await this.findOne( term );
-    if ( updatePokemonDto.name )
+
+    if (updatePokemonDto.name) {
       updatePokemonDto.name = updatePokemonDto.name.toLocaleLowerCase();
-
-    await pokemon.updateOne( updatePokemonDto );
-
+    }
+    
+    await pokemon.updateOne(updatePokemonDto);
+    
     return { ...pokemon.toJSON(), ...updatePokemonDto };
   }
 
@@ -84,9 +108,17 @@ export class PokemonService {
     // return{ id };
     // const result = await this.pokemonModel.findByIdAndDelete( id );
     const { deletedCount } = await this.pokemonModel.deleteOne({ _id: id });
-    if ( deletedCount === 0 )
+    
+    if (deletedCount === 0)
       throw new BadRequestException(`Pokemon with id "${ id }" not found`);
     
-    return;
   }
 }
+
+function limit(arg0: number) {
+  throw new Error('Function not implemented.');
+}
+function skip(arg0: number) {
+  throw new Error('Function not implemented.');
+}
+
