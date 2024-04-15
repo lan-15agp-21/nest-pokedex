@@ -1,124 +1,106 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException,  } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ConfigService } from '@nestjs/config';
-
-
-import { isValidObjectId, Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Pokemon } from './entities/pokemon.entity';
 
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
-export class PokemonService { 
+export class PokemonService {
 
-  private defaultLimit: number;
-  
   constructor(
-
-
-    @InjectModel( Pokemon.name )
-    private readonly pokemonModel: Model<Pokemon>,
-
-    private readonly configService: ConfigService,
-  
-  ) {
-     
-     this.defaultLimit = configService.get<number>('defaultLimit');
-     
-  }
+    @InjectModel(Pokemon.name)
+    private readonly pokemonModule: Model<Pokemon>
+  ){}
   
   async create(createPokemonDto: CreatePokemonDto) {
     createPokemonDto.name = createPokemonDto.name.toLocaleLowerCase();
 
-    
-  try {
-    const pokemon = await this.pokemonModel.create( createPokemonDto );
-    return pokemon;
-  
-  } catch ( error ) {
-    this.handleExceptions( error);
+    try {
+      const pokemon = await this.pokemonModule.create(createPokemonDto);
+      return createPokemonDto;
+      
+      
+    } catch (error) {
+      if ( error.code === 11000 ) {
+        throw new BadRequestException(`Pokemon exists in db ${JSON.stringify(error.keyValue)}`);
+      }
+      console.log(error);
+      throw new InternalServerErrorException(`Can't create Pokemon - Check server logs`);
+    }
   }
-
-}  
-handleExceptions(error: any) {
-  throw new Error('Method not implemented.');
-  }
-
-  findAll( paginationDto: PaginationDto ) {
-
-    const { limit = this.defaultLimit, offset = 0  } = paginationDto;
     
-    return this.pokemonModel.find()
-      .limit( limit )
-      .skip( offset )
-      .sort({
-        no: 1
-      })
-      .select('-_v')
+  findAll() {
+    return `This action returns all pokemon`;
   }
 
   async findOne(term: string) {
     
     let pokemon: Pokemon;
-
-    if ( !isNaN( +term)) {
-      pokemon = await this.pokemonModel.findOne({ no: term });
-    }
     
-    
-    
-    
-    // MongoID
-    if  ( !pokemon && isValidObjectId(term)) {
-      pokemon = await this.pokemonModel.findById(term);
+    if ( isNaN(+term)){
+      pokemon = await this.pokemonModule.findOne({no: term });
     }
 
+    // Mondo ID
+    if (!pokemon && isValidObjectId( term)){
+      pokemon = await this.pokemonModule.findById( term );
+    }
+  
     // Name
-    if ( !pokemon ) {
-      pokemon = await this.pokemonModel.findOne({ name: term.toLocaleLowerCase().trim() })
+    if (!pokemon){
+      pokemon = await this.pokemonModule.findOne({ name: term.toLowerCase().trim() })
     }
 
 
-    if ( !pokemon ) {
-      throw new NotFoundException(`Pokemon with id,name or no "${term}" not found`);
-    
-  } 
-    
+    if ( !pokemon )
+    throw new NotFoundException(`Pokemon with id, name or no "${ term }" not foud`);
+
     return pokemon;
   }
-
-  async update(term: string, updatePokemonDto:  UpdatePokemonDto) {
-    const pokemon = await this.findOne(term);
-
-
-    if (updatePokemonDto.name) {
-      updatePokemonDto.name = updatePokemonDto.name.toLocaleLowerCase();
-    }
     
-    await pokemon.updateOne(updatePokemonDto);
+  async update(term: string, updatePokemonDto: UpdatePokemonDto) {
     
-    return { ...pokemon.toJSON(), ...updatePokemonDto };
-  }
+    const pokemon = await this.findOne( term );
+    if ( updatePokemonDto.name )
+    updatePokemonDto.name = updatePokemonDto.name.toLocaleLowerCase();
+    
+  try {
+    await pokemon.updateOne( updatePokemonDto);
+    return {...pokemon.toJSON(),...updatePokemonDto };
 
-  async remove(id: string) {
-    // const pokemon = await this.findOne( id );
-    // await pokemon.deleteOne();
-    // return{ id };
-    // const result = await this.pokemonModel.findByIdAndDelete( id );
-    const { deletedCount } = await this.pokemonModel.deleteOne({ _id: id });
-    
-    if (deletedCount === 0)
-      throw new BadRequestException(`Pokemon with id "${ id }" not found`);
-    
+  } catch (error) {
+    this.handleExceptions(error);
   }
 }
 
-function limit(arg0: number) {
-  throw new Error('Function not implemented.');
+async remove(id: string) { 
+//  const pokemon = await this.findOne(id);
+//  await pokemon.deleteOne();
+//  return { id };
+// const result = await this.PokemonModule.findByIdAndDelete(id);
+
+const { deletedCount } = await this.pokemonModule.deleteOne({ _id: id});
+if ( deletedCount === 0 )
+throw new BadRequestException(`Pokemon with id "${ id })" not fount`);
+
+
+return;
 }
-function skip(arg0: number) {
-  throw new Error('Function not implemented.');
-}
+private handleExceptions( error: any ){
+  if(error.code === 11000) {
+    throw new BadRequestException(`Pokemon exists in db $ {
+      JSON.stringify(error.keyValue)
+    }`);
+  }
+  console.log(error);
+  throw new InternalServerErrorException(`Can't create Pokemon - Check server logs`);
+  }
+}    
+
+
+
+
+
 

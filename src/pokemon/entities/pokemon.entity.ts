@@ -1,16 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document  } from 'mongoose'
+
 
 @Schema()
-export class Pokemon extends Document {
+export class Pokemon  extends Document {
 
-
-    // id: string // Mongo me lo da
     @Prop({
         unique: true,
         index: true,
     })
     name: string;
+
+
 
     @Prop({
         unique: true,
@@ -19,6 +20,4 @@ export class Pokemon extends Document {
     no: number;
 
 }
-
-
-export const PokemonSchema = SchemaFactory.createForClass( Pokemon );
+export const PokemonSchema = SchemaFactory.createForClass(Pokemon)
