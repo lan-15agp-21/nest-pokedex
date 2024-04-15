@@ -25,7 +25,7 @@ docker-compose up -d
 7.Ejecutar la aplicacion en dev:
 ```npm i run start:dev```
 
-8.Recontruir la base de datos con la semilla
+8.Reconstruir la base de datos con la semilla
 ```
 
 http://localhost:3000/api/v2/seed
